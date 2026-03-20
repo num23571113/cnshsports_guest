@@ -3,28 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>과고 스포츠 리그 - 관리자용(서버 연동)</title>
+    <title>과고 스포츠 리그 - 실시간 관전</title>
     <style>
         body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
         h1 { text-align: center; color: #1a237e; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #e74c3c; margin-bottom: 20px; font-size: 14px; font-weight: bold; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 14px; }
         .tab-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 20px; }
         .tab-btn { padding: 8px 15px; font-size: 14px; font-weight: bold; border: 1px solid #ccc; border-radius: 20px; background-color: white; cursor: pointer; transition: 0.2s; }
-        .tab-btn:hover { background-color: #e3f2fd; }
         .tab-btn.active { background-color: #1a237e; color: white; border-color: #1a237e; }
         .main-content { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         h2 { border-bottom: 2px solid #1a237e; padding-bottom: 10px; color: #1a237e; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;}
         
-        .input-section { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee; }
-        textarea { width: 100%; height: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical; box-sizing: border-box; }
-        
-        button.action-btn { background-color: #3498db; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button.action-btn:hover { background-color: #2980b9; }
-        button.reset-btn { background-color: #e74c3c; font-size: 12px; padding: 5px 10px; }
-        
-        /* 서버 저장 버튼 특별 디자인 */
-        button.sync-btn { background-color: #27ae60; margin-left: auto; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button.sync-btn:hover { background-color: #2ecc71; transform: translateY(-2px); }
+        button.refresh-btn { background-color: #3498db; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-left: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button.refresh-btn:hover { background-color: #2980b9; }
 
         .bracket-scroll-area { overflow-x: auto; padding: 20px 0; position: relative; }
         .bracket-wrapper { display: flex; gap: 50px; position: relative; min-width: max-content; padding: 15px; }
@@ -32,12 +23,13 @@
         .round { display: flex; flex-direction: column; justify-content: space-around; min-width: 200px; gap: 20px; position: relative; z-index: 1; }
         .round-title { text-align: center; font-weight: 800; color: #1a237e; margin-bottom: 15px; background: #e3f2fd; padding: 10px; border-radius: 8px; font-size: 16px; }
         .match { background: #fff; border: 2px solid #34495e; border-radius: 8px; overflow: hidden; box-shadow: 3px 3px 0px rgba(52, 73, 94, 0.2); position: relative; }
-        .player { padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px; transition: 0.2s; min-height: 20px; font-weight: 600; }
+        
+        /* 관전 모드 전용: 클릭 금지 마우스 커서 */
+        .player { padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; min-height: 20px; font-weight: 600; cursor: default; }
         .player:last-child { border-bottom: none; }
-        .player:hover { background: #f1f2f6; }
         .player.winner { background: #e8f5e9; color: #2e7d32; font-weight: 900; border-left: 5px solid #2e7d32; }
         .player.empty { color: #aaa; font-style: italic; font-weight: 400; }
-        .player.bye { color: #7f8c8d; background: #ecf0f1; cursor: default; font-weight: 400; }
+        .player.bye { color: #7f8c8d; background: #ecf0f1; font-weight: 400; }
         
         .final-winner-round { gap: 0; justify-content: center;}
         .final-winner-card { background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); border: 4px solid #f1c40f; border-radius: 12px; padding: 30px 20px; text-align: center; box-shadow: 0 10px 20px rgba(241, 196, 15, 0.3); animation: winnerGlow 2s infinite alternate; }
@@ -49,26 +41,18 @@
 </head>
 <body>
 
-    <h1>👑 충곽 스포츠 리그 (관리자 모드)</h1>
-    <div class="subtitle">결과를 수정한 후 반드시 우측의 [서버에 저장] 버튼을 눌러야 학생들에게 반영됩니다!</div>
+    <h1>🏆 충곽 스포츠 리그 대진표</h1>
+    <div class="subtitle">실시간 관전 페이지입니다. 데이터가 안 맞으면 새로고침을 누르세요.</div>
 
     <div class="tab-container" id="tabs"></div>
 
     <div class="main-content">
         <h2>
             <span id="current-sport-title">종목</span>
-            <button class="action-btn sync-btn" id="sync-btn" onclick="saveToServer()">☁️ 서버에 진행상황 저장 (동기화)</button>
-            <button class="action-btn reset-btn" onclick="resetCurrentSport()">현재 종목 초기화</button>
+            <button class="refresh-btn" onclick="loadFromServer()">🔄 최신 결과 새로고침</button>
         </h2>
         
-        <div class="input-section" id="setup-area">
-            <textarea id="player-input" placeholder="1반 홍길동&#10;2반 김철수"></textarea>
-            <div style="margin-top: 10px;">
-                <button class="action-btn" onclick="generateBracket()">랜덤 대진표 생성하기</button>
-            </div>
-        </div>
-
-        <div id="bracket-area" style="display: none;">
+        <div id="bracket-area">
             <div class="bracket-scroll-area">
                 <div class="bracket-wrapper" id="bracket-wrapper">
                     <svg id="line-canvas"></svg>
@@ -79,7 +63,6 @@
     </div>
 
 <script>
-    // 🔑 JSONBin 연결 키 (부장님이 발급받은 키!)
     const BIN_ID = '69bbe002b7ec241ddc81b802';
     const API_KEY = '$2a$10$SDttnsDF3BsydQn2NYdhtOvERBpcnUeK752qym0rAJRjufxp8OEai';
 
@@ -90,7 +73,6 @@
     let currentSport = sportsList[0];
     let leagueData = {}; 
 
-    // 1. 서버에서 데이터 불러오기
     async function loadFromServer() {
         try {
             const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
@@ -98,50 +80,17 @@
             });
             const data = await response.json();
             
-            // 처음 만들었던 더미 데이터가 있으면 초기화, 아니면 데이터 적용
             if (data.record && !data.record.league) {
                 leagueData = data.record;
             }
-            
-            // 누락된 종목 빈 칸 처리
             sportsList.forEach(s => { if(leagueData[s] === undefined) leagueData[s] = null; });
             updateView();
         } catch (error) {
             console.error(error);
-            alert("서버에서 데이터를 불러오는 데 실패했습니다.");
+            alert("서버 연결 실패. 잠시 후 다시 시도해주세요.");
         }
     }
 
-    // 2. 서버에 데이터 덮어쓰기 (핵심!)
-    async function saveToServer() {
-        const btn = document.getElementById('sync-btn');
-        btn.innerText = "⏳ 서버에 저장 중...";
-        btn.style.backgroundColor = "#95a5a6";
-
-        try {
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': API_KEY
-                },
-                body: JSON.stringify(leagueData)
-            });
-
-            if(response.ok) {
-                alert("✅ 서버에 완벽하게 저장되었습니다!\n이제 학생들이 새로고침하면 최신 결과를 볼 수 있습니다.");
-            } else {
-                alert("❌ 저장 실패. 다시 시도해주세요.");
-            }
-        } catch(error) {
-            alert("❌ 인터넷 연결 문제로 저장에 실패했습니다.");
-        } finally {
-            btn.innerText = "☁️ 서버에 진행상황 저장 (동기화)";
-            btn.style.backgroundColor = "#27ae60";
-        }
-    }
-
-    // --- 아래는 기존 대진표 UI 코드 (수정 없음) ---
     function renderTabs() {
         const tabContainer = document.getElementById('tabs');
         tabContainer.innerHTML = '';
@@ -157,57 +106,13 @@
     function updateView() {
         renderTabs();
         document.getElementById('current-sport-title').innerText = currentSport;
-        
         const sportData = leagueData[currentSport];
         if (sportData) {
-            document.getElementById('setup-area').style.display = 'none';
-            document.getElementById('bracket-area').style.display = 'block';
+            document.getElementById('bracket-container').innerHTML = '';
             renderBracket(sportData);
         } else {
-            document.getElementById('setup-area').style.display = 'block';
-            document.getElementById('player-input').value = '';
-            document.getElementById('bracket-area').style.display = 'none';
-        }
-    }
-
-    function generateBracket() {
-        const input = document.getElementById('player-input').value.trim();
-        if (!input) return alert('참가자를 입력해주세요!');
-        let players = input.split('\n').map(p => p.trim()).filter(p => p !== '');
-        let targetSize = 2;
-        while (targetSize < players.length) targetSize *= 2;
-        while (players.length < targetSize) players.push('부전승');
-        players.sort(() => Math.random() - 0.5);
-
-        const roundsCount = Math.log2(targetSize);
-        let rounds = [];
-        let firstRoundMatches = [];
-        for(let i=0; i<targetSize; i+=2) firstRoundMatches.push({ p1: players[i], p2: players[i+1], winner: null });
-        rounds.push(firstRoundMatches);
-
-        for(let r=1; r<=roundsCount; r++) {
-            let numMatches = targetSize / Math.pow(2, r+1);
-            let roundMatches = [];
-            for(let i=0; i<numMatches; i++) roundMatches.push({ p1: null, p2: null, winner: null });
-            if (numMatches > 0) rounds.push(roundMatches);
-        }
-        rounds.push([{ p1: null }]); 
-
-        leagueData[currentSport] = { rounds: rounds };
-        autoAdvanceByes();
-        updateView();
-        
-        // 생성 후 자동으로 서버 저장 1회 실행
-        saveToServer();
-    }
-
-    function autoAdvanceByes() {
-        const rounds = leagueData[currentSport].rounds;
-        if(rounds.length > 1) {
-            rounds[0].forEach((match, index) => {
-                if (match.p1 === '부전승' && match.p2 !== '부전승' && match.p2 !== '?') setWinner(0, index, match.p2, false);
-                else if (match.p2 === '부전승' && match.p1 !== '부전승' && match.p1 !== '?') setWinner(0, index, match.p1, false);
-            });
+            document.getElementById('bracket-container').innerHTML = '<div style="padding: 30px; text-align:center; width:100%; color:#888;">아직 대진표가 생성되지 않았습니다.</div>';
+            document.getElementById('line-canvas').innerHTML = '';
         }
     }
 
@@ -237,8 +142,8 @@
                     matchDiv.className = 'match';
                     const p1Class = match.p1 === '부전승' ? 'bye' : (!match.p1 ? 'empty' : (match.winner === match.p1 ? 'winner' : ''));
                     const p2Class = match.p2 === '부전승' ? 'bye' : (!match.p2 ? 'empty' : (match.winner === match.p2 ? 'winner' : ''));
-                    matchDiv.innerHTML = `<div class="player ${p1Class}" onclick="handlePlayerClick(${rIndex}, ${mIndex}, 1)">${match.p1 || '?'}</div>
-                                          <div class="player ${p2Class}" onclick="handlePlayerClick(${rIndex}, ${mIndex}, 2)">${match.p2 || '?'}</div>`;
+                    matchDiv.innerHTML = `<div class="player ${p1Class}">${match.p1 || '?'}</div>
+                                          <div class="player ${p2Class}">${match.p2 || '?'}</div>`;
                     roundDiv.appendChild(matchDiv);
                 });
             }
@@ -273,48 +178,9 @@
         }
     }
 
-    function handlePlayerClick(rIndex, mIndex, playerNum) {
-        const data = leagueData[currentSport];
-        const match = data.rounds[rIndex][mIndex];
-        const clickedPlayer = playerNum === 1 ? match.p1 : match.p2;
-        if (!clickedPlayer || clickedPlayer === '?' || clickedPlayer === '부전승') return;
-        if (match.winner === clickedPlayer) setWinner(rIndex, mIndex, null, true);
-        else setWinner(rIndex, mIndex, clickedPlayer, true);
-    }
-
-    function setWinner(rIndex, mIndex, winnerName, doUpdateView = true) {
-        const data = leagueData[currentSport];
-        data.rounds[rIndex][mIndex].winner = winnerName;
-
-        if (rIndex + 1 < data.rounds.length) {
-            if (rIndex === data.rounds.length - 2) { 
-                 data.rounds[rIndex + 1][0].p1 = winnerName;
-            } else {
-                const nextMatchIndex = Math.floor(mIndex / 2);
-                const isPlayer1 = mIndex % 2 === 0;
-                if (winnerName === null) { 
-                    if (isPlayer1) data.rounds[rIndex + 1][nextMatchIndex].p1 = null;
-                    else data.rounds[rIndex + 1][nextMatchIndex].p2 = null;
-                    data.rounds[rIndex + 1][nextMatchIndex].winner = null; 
-                } else {
-                    if (isPlayer1) data.rounds[rIndex + 1][nextMatchIndex].p1 = winnerName;
-                    else data.rounds[rIndex + 1][nextMatchIndex].p2 = winnerName;
-                }
-            }
-        }
-        if(doUpdateView) updateView(); 
-    }
-
-    function resetCurrentSport() {
-        if(confirm(`정말 [${currentSport}] 대진표를 초기화하시겠습니까?`)) {
-            leagueData[currentSport] = null;
-            updateView();
-        }
-    }
-
     window.addEventListener('resize', () => { if(leagueData[currentSport]) drawConnectingLines(); });
 
-    // 시작 시 서버에서 데이터 로드
+    // 시작 시 자동 로드
     loadFromServer();
 </script>
 </body>
